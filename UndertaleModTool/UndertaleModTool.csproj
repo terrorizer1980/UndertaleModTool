@@ -240,6 +240,7 @@
     <Compile Include="Converters\MaskImageConverter.cs" />
     <Compile Include="Converters\NullToVisibilityConverter.cs" />
     <Compile Include="Converters\RectConverter.cs" />
+    <Compile Include="DeepCopyFunctions.cs" />
     <Compile Include="CorrectionsManager.cs" />
     <Compile Include="Editors\UndertaleGameEndEditor.xaml.cs">
       <DependentUpon>UndertaleGameEndEditor.xaml</DependentUpon>
