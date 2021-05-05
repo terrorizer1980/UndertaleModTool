@@ -12,7 +12,7 @@ namespace UndertaleModTool
     [ValueConversion(typeof(byte[]), typeof(string))]
     public sealed class ByteGUIDArrayConverter : IValueConverter
     {
-        public byte[] loaded_for_edit;
+        public byte[] loaded_for_edit = new byte[16];
         public byte[] reversedForDisplay = new byte[16];
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
@@ -37,6 +37,8 @@ namespace UndertaleModTool
             {
                 String hex = (String)value;
                 String[] hex_values = hex.Split(" ");
+                if (hex_values.Length != 16)
+                    return loaded_for_edit;
                 String[] hex_values_reversed = new string[16];
                 hex_values_reversed[0] = hex_values[3];
                 hex_values_reversed[1] = hex_values[2];
