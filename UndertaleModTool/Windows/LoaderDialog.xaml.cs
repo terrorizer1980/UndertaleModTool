@@ -20,13 +20,11 @@ namespace UndertaleModTool
     /// <summary>
     /// Logika interakcji dla klasy LoaderDialog.xaml
     /// </summary>
-    public partial class LoaderDialog : Window, INotifyPropertyChanged
+    [PropertyChanged.AddINotifyPropertyChangedInterface]
+    public partial class LoaderDialog : Window
     {
-
-        private string _Message;
-
         public string MessageTitle { get; set; }
-        public string Message { get => _Message; set { _Message = value; PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Message")); } }
+        public string Message { get; set; }
         public bool PreventClose { get; set; }
 
         public string StatusText { get; set; } = "Please wait...";
@@ -46,10 +44,6 @@ namespace UndertaleModTool
         }
         public bool IsClosed { get; set; } = false;
 
-        private DebugTraceListener listener;
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
         public LoaderDialog(string title, string msg)
         {
             MessageTitle = title;
@@ -58,13 +52,7 @@ namespace UndertaleModTool
             InitializeComponent();
             this.DataContext = this;
 
-            listener = new DebugTraceListener(this);
-            Debug.Listeners.Add(listener);
-        }
-
-        private void Window_Unloaded(object sender, RoutedEventArgs e)
-        {
-            Debug.Listeners.Remove(listener);
+            (Application.Current.MainWindow as MainWindow).FileMessageEvent += ReportProgress;
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -74,8 +62,8 @@ namespace UndertaleModTool
 
         protected override void OnClosed(EventArgs e)
         {
-            base.OnClosed(e);
             IsClosed = true;
+            base.OnClosed(e);
         }
 
         public void TryHide()
@@ -102,10 +90,20 @@ namespace UndertaleModTool
             });
         }
 
+        public void TryShowDialog()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (!IsClosed)
+                {
+                    ShowDialog();
+                }
+            });
+        }
+
         public void ReportProgress(string message)
         {
             StatusText = message;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("StatusText"));
         }
 
         public void ReportProgress(string message, double value)
@@ -136,25 +134,6 @@ namespace UndertaleModTool
                 Dispatcher.Invoke(Show);
 
             ReportProgress(status);
-        }
-        private class DebugTraceListener : TraceListener
-        {
-            private LoaderDialog loaderDialog;
-
-            public DebugTraceListener(LoaderDialog loaderDialog)
-            {
-                this.loaderDialog = loaderDialog;
-            }
-
-            public override void Write(string message)
-            {
-                WriteLine(message);
-            }
-
-            public override void WriteLine(string message)
-            {
-                loaderDialog.ReportProgress(message);
-            }
         }
     }
 }

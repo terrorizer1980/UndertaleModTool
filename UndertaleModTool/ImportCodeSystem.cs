@@ -56,32 +56,40 @@ namespace UndertaleModTool
 
         public void NukeProfileGML(string codeName)
         {
+            // This is written as intended
             string path = Path.Combine(ProfilesFolder, Data.ToolInfo.CurrentMD5, "Temp", codeName + ".gml");
             if (File.Exists(path))
             {
-                //The file must be deleted to write it again properly with true decompiled output
-                //Just overwriting it isn't enough
                 File.Delete(path);
-                File.WriteAllText(path, GetDecompiledText(codeName));
             }
         }
 
-        public string GetPassBack(string decompiled_text, string keyword, string replacement, bool case_sensitive = false)
+        public string GetPassBack(string decompiled_text, string keyword, string replacement, bool case_sensitive = false, bool isRegex = false)
         {
             keyword = keyword.Replace("\r\n", "\n");
             replacement = replacement.Replace("\r\n", "\n");
             string passBack;
-            if (case_sensitive)
-                passBack = decompiled_text.Replace(keyword, replacement);
+            if (!isRegex)
+            {
+                if (case_sensitive)
+                    passBack = decompiled_text.Replace(keyword, replacement);
+                else
+                    passBack = Regex.Replace(decompiled_text, Regex.Escape(keyword), Regex.Escape(replacement), RegexOptions.IgnoreCase);
+            }
             else
-                passBack = Regex.Replace(decompiled_text, Regex.Escape(keyword), replacement, RegexOptions.IgnoreCase);
+            {
+                if (case_sensitive)
+                    passBack = Regex.Replace(decompiled_text, keyword, replacement, RegexOptions.None);
+                else
+                    passBack = Regex.Replace(decompiled_text, keyword, replacement, RegexOptions.IgnoreCase);
+            }
             return passBack;
         }
 
-        public void ReplaceTextInGML(string codeName, string keyword, string replacement, bool case_sensitive = false)
+        public void ReplaceTextInGML(string codeName, string keyword, string replacement, bool case_sensitive = false, bool isRegex = false)
         {
             UndertaleCode code;
-            string passBack;
+            string passBack = "";
             EnsureDataLoaded();
             if (Data.Code.ByName(codeName) != null)
                 code = Data.Code.ByName(codeName);
@@ -95,7 +103,7 @@ namespace UndertaleModTool
                 ThreadLocal<DecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<DecompileContext>(() => new DecompileContext(Data, false));
                 try
                 {
-                    passBack = GetPassBack((code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value) : ""), keyword, replacement);
+                    passBack = GetPassBack((code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value) : ""), keyword, replacement, case_sensitive, isRegex);
                     code.ReplaceGML(passBack, Data);
                 }
                 catch (Exception exc)
@@ -110,7 +118,7 @@ namespace UndertaleModTool
                     string path = Path.Combine(ProfilesFolder, Data.ToolInfo.CurrentMD5, codeName + ".gml");
                     if (File.Exists(path))
                     {
-                        passBack = GetPassBack(File.ReadAllText(path), keyword, replacement, case_sensitive);
+                        passBack = GetPassBack(File.ReadAllText(path), keyword, replacement, case_sensitive, isRegex);
                         File.WriteAllText(path, passBack);
                         code.ReplaceGML(passBack, Data);
                     }
@@ -119,7 +127,7 @@ namespace UndertaleModTool
                         ThreadLocal<DecompileContext> DECOMPILE_CONTEXT = new ThreadLocal<DecompileContext>(() => new DecompileContext(Data, false));
                         try
                         {
-                            passBack = GetPassBack((code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value) : ""), keyword, replacement);
+                            passBack = GetPassBack((code != null ? Decompiler.Decompile(code, DECOMPILE_CONTEXT.Value) : ""), keyword, replacement, case_sensitive, isRegex);
                             code.ReplaceGML(passBack, Data);
                         }
                         catch (Exception exc)
@@ -130,7 +138,7 @@ namespace UndertaleModTool
                 }
                 catch (Exception exc)
                 {
-                    throw new Exception("Error during writing of GML code to profile:\n" + exc.ToString());
+                    throw new Exception("Error during writing of GML code to profile:\n" + exc.ToString() + "\n\nCode:\n\n" + passBack);
                 }
             }
         }

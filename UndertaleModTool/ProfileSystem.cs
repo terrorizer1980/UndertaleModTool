@@ -57,52 +57,56 @@ namespace UndertaleModTool
                     string reportedHashOfCrashedFile = crashRecoveryData[0].Trim();
                     string pathOfCrashedFile = crashRecoveryData[1];
                     string pathOfRecoverableCode = Path.Combine(ProfilesFolder, reportedHashOfCrashedFile);
-                    using (var md5Instance = MD5.Create())
+                    if (File.Exists(pathOfCrashedFile))
                     {
-                        using (var stream = File.OpenRead(pathOfCrashedFile))
+                        using (var md5Instance = MD5.Create())
                         {
-                            profileHashOfCrashedFile = BitConverter.ToString(md5Instance.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
-                        }
-                    }
-                    if (Directory.Exists(Path.Combine(ProfilesFolder, reportedHashOfCrashedFile)) && 
-                        File.Exists(pathOfCrashedFile) && 
-                        profileHashOfCrashedFile == reportedHashOfCrashedFile)
-                    {
-                        if (MessageBox.Show("UndertaleModTool crashed during usage last time while editing " + pathOfCrashedFile + ", would you like to recover your code now?", "UndertaleModTool", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-                        {
-                            LoadFile(pathOfCrashedFile, true).ContinueWith((t) => { });
-                            if (Data == null)
+                            using (var stream = File.OpenRead(pathOfCrashedFile))
                             {
-                                MessageBox.Show("Failed to load data when recovering.");
-                                return;
+                                profileHashOfCrashedFile = BitConverter.ToString(md5Instance.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
                             }
-                            string[] dirFiles = Directory.GetFiles(dataRecoverLocation);
-                            int progress = 0;
-                            LoaderDialog codeLoadDialog = new LoaderDialog("Script in progress...", "Please wait...");
-                            codeLoadDialog.PreventClose = true;
-                            codeLoadDialog.Update(null, "Code entries processed: ", progress++, dirFiles.Length);
-                            codeLoadDialog.Dispatcher.Invoke(DispatcherPriority.Background, new ThreadStart(delegate { })); // Updates the UI, so you can see the progress.
-                            foreach (string file in dirFiles)
+                        }
+                        if (Directory.Exists(Path.Combine(ProfilesFolder, reportedHashOfCrashedFile)) &&
+                            profileHashOfCrashedFile == reportedHashOfCrashedFile)
+                        {
+                            if (MessageBox.Show("UndertaleModTool crashed during usage last time while editing " + pathOfCrashedFile + ", would you like to recover your code now?", "UndertaleModTool", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                             {
-                                ImportGMLFile(file);
+                                LoadFile(pathOfCrashedFile, true).ContinueWith((t) => { });
+                                if (Data == null)
+                                {
+                                    MessageBox.Show("Failed to load data when recovering.");
+                                    return;
+                                }
+                                string[] dirFiles = Directory.GetFiles(dataRecoverLocation);
+                                int progress = 0;
+                                LoaderDialog codeLoadDialog = new LoaderDialog("Script in progress...", "Please wait...");
+                                codeLoadDialog.PreventClose = true;
                                 codeLoadDialog.Update(null, "Code entries processed: ", progress++, dirFiles.Length);
                                 codeLoadDialog.Dispatcher.Invoke(DispatcherPriority.Background, new ThreadStart(delegate { })); // Updates the UI, so you can see the progress.
+                                foreach (string file in dirFiles)
+                                {
+                                    ImportGMLFile(file);
+                                    codeLoadDialog.Update(null, "Code entries processed: ", progress++, dirFiles.Length);
+                                    codeLoadDialog.Dispatcher.Invoke(DispatcherPriority.Background, new ThreadStart(delegate { })); // Updates the UI, so you can see the progress.
+                                }
+                                codeLoadDialog.TryClose();
+                                MessageBox.Show("Completed.");
                             }
-                            codeLoadDialog.TryClose();
-                            MessageBox.Show("Completed.");
-                        }
-                        else if (MessageBox.Show("Would you like to move this code to the \"Recovered\" folder now? Any previous code there will be cleared!", "UndertaleModTool", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-                        {
-                            MessageBox.Show("Your code can be recovered from the \"Recovered\" folder at any time.");
-                            string recoveredDir = Path.Combine(AppDataFolder, "Recovered", reportedHashOfCrashedFile);
-                            if (Directory.Exists(recoveredDir))
-                                Directory.Delete(recoveredDir, true);
-                            Directory.Move(pathOfRecoverableCode, recoveredDir);
-                            ApplyCorrections();
-                        }
-                        else
-                        {
-                            MessageBox.Show("A crash has been detected from last session. Please check the Profiles folder for recoverable data now.");
+                            else if (MessageBox.Show("Would you like to move this code to the \"Recovered\" folder now? Any previous code there will be cleared!", "UndertaleModTool", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                            {
+                                MessageBox.Show("Your code can be recovered from the \"Recovered\" folder at any time.");
+                                string recoveredDir = Path.Combine(AppDataFolder, "Recovered", reportedHashOfCrashedFile);
+                                if (!Directory.Exists(Path.Combine(AppDataFolder, "Recovered")))
+                                    Directory.CreateDirectory(Path.Combine(AppDataFolder, "Recovered"));
+                                if (Directory.Exists(recoveredDir))
+                                    Directory.Delete(recoveredDir, true);
+                                Directory.Move(pathOfRecoverableCode, recoveredDir);
+                                ApplyCorrections();
+                            }
+                            else
+                            {
+                                MessageBox.Show("A crash has been detected from last session. Please check the Profiles folder for recoverable data now.");
+                            }
                         }
                     }
                     else
@@ -179,7 +183,7 @@ namespace UndertaleModTool
             {
                 // This extra step needs to happen for non-profile mode because the "Temp" folder can be modified in non-profile mode.
                 // If we don't, it could cause desynchronization between modes.
-                if (SettingsWindow.ProfileModeEnabled == "False")
+                if (!SettingsWindow.ProfileModeEnabled)
                 {
                     string mainFolder = Path.Combine(ProfilesFolder, ProfileHash, "Main");
                     string tempFolder = Path.Combine(ProfilesFolder, ProfileHash, "Temp");
@@ -212,11 +216,11 @@ namespace UndertaleModTool
                 string profDirTemp = Path.Combine(profDir, "Temp");
                 string profDirMain = Path.Combine(profDir, "Main");
 
-                if (SettingsWindow.ProfileModeEnabled == "True")
+                if (SettingsWindow.ProfileModeEnabled)
                 {
                     if (data.GMS2_3)
                     {
-                        MessageBox.Show("The profile feature is not currently supported for GameMaker 2.3 games.");
+                        MessageBox.Show("Profile mode is not currently supported for GameMaker Studio 2.3 games.");
                         return;
                     }
 
@@ -258,11 +262,11 @@ namespace UndertaleModTool
                     if (!Directory.Exists(profDir) || !Directory.Exists(profDirMain) || !Directory.Exists(profDirTemp))
                     {
                         MessageBox.Show("Profile should exist, but does not. Insufficient permissions? Profile mode is disabled.");
-                        SettingsWindow.ProfileModeEnabled = "False";
+                        SettingsWindow.ProfileModeEnabled = false;
                         return;
                     }
 
-                    if (SettingsWindow.ProfileMessageShown == "False")
+                    if (!SettingsWindow.ProfileMessageShown)
                     {
                         MessageBox.Show(@"The profile for your game loaded successfully!
 
@@ -283,7 +287,7 @@ modding projects, or when performing technical operations.
 It should be noted that this system is somewhat experimental, so
 should you encounter any problems, please let us know or leave
 an issue on GitHub.");
-                        SettingsWindow.ProfileMessageShown = "True";
+                        SettingsWindow.ProfileMessageShown = true;
                     }
                     CreateUMTLastEdited(filename);
                 }
@@ -312,13 +316,13 @@ an issue on GitHub.");
                 }
                 Directory.CreateDirectory(Path.Combine(ProfilesFolder, ProfileHash, "Main"));
                 Directory.CreateDirectory(Path.Combine(ProfilesFolder, ProfileHash, "Temp"));
-                if (SettingsWindow.ProfileModeEnabled == "False" || data.GMS2_3 || data.IsYYC())
+                if (!SettingsWindow.ProfileModeEnabled || data.GMS2_3 || data.IsYYC())
                 {
                     MD5PreviouslyLoaded = MD5CurrentlyLoaded;
                     ProfileHash = BitConverter.ToString(MD5PreviouslyLoaded).Replace("-", "").ToLowerInvariant();
                     return;
                 }
-                else if (SettingsWindow.ProfileModeEnabled == "True")
+                else if (SettingsWindow.ProfileModeEnabled)
                 {
                     Directory.CreateDirectory(ProfilesFolder);
                     string profDir;
@@ -362,7 +366,7 @@ an issue on GitHub.");
                     Directory.CreateDirectory(Path.Combine(profDir, "Temp"));
                     MessageBox.Show("Profile saved successfully to " + ProfileHash);
                 }
-                if (SettingsWindow.DeleteOldProfileOnSave == "True" && copyProfile)
+                if (SettingsWindow.DeleteOldProfileOnSave && copyProfile)
                 {
                     Directory.Delete(Path.Combine(ProfilesFolder, deleteIfModeActive), true);
                 }

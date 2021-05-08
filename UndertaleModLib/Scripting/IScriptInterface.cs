@@ -27,6 +27,7 @@ namespace UndertaleModLib.Scripting
         bool ScriptQuestion(string message);
         void ScriptError(string error, string title = "Error", bool SetConsoleText = true);
         void ScriptOpenURL(string url);
+        string LintAllScripts();
         void NukeProfileGML(string codeName);
         string GetDecompiledText(string codeName);
         string GetDisassemblyText(string codeName);
@@ -47,6 +48,6 @@ namespace UndertaleModLib.Scripting
         void ImportASMString(string codeName, string gmlCode, bool doParse = true, bool destroyASM = true, bool CheckDecompiler = false);
         void ImportGMLFile(string fileName, bool doParse = true, bool CheckDecompiler = false);
         void ImportASMFile(string fileName, bool doParse = true, bool destroyASM = true, bool CheckDecompiler = false);
-        void ReplaceTextInGML(string codeName, string keyword, string replacement, bool case_sensitive = false);
+        void ReplaceTextInGML(string codeName, string keyword, string replacement, bool case_sensitive = false, bool isRegex = false);
     }
 }
