@@ -24,6 +24,10 @@ namespace UndertaleModTests
         public object Selected => throw new NotImplementedException();
         public bool CanSave => throw new NotImplementedException();
         public string ScriptPath => throw new NotImplementedException();
+        public bool ScriptExecutionSuccess => throw new NotImplementedException();
+        public string ScriptErrorMessage => throw new NotImplementedException();
+        public string ExePath => throw new NotImplementedException();
+        public string ScriptErrorType => throw new NotImplementedException();
 
         public void ChangeSelection(object newsel)
         {
@@ -47,8 +51,21 @@ namespace UndertaleModTests
         public void UpdateCorrections(bool ImAnExpertBTW = false)
         {
         }
-        public string LintAllScripts()
+        public void ReapplyProfileCode()
         {
+        }
+        public void InitializeScriptDialog()
+        {
+        }
+        public bool RunUMTScript(string path)
+        {
+            Console.WriteLine(path);
+            return true;
+        }
+        public bool LintUMTScript(string path)
+        {
+            Console.WriteLine(path);
+            return true;
         }
 
         public void ScriptMessage(string message)
@@ -61,7 +78,10 @@ namespace UndertaleModTests
             Console.WriteLine(message);
             return true;
         }
-
+        public bool SendAUMIMessage(IpcMessage_t ipMessage, ref IpcReply_t outReply)
+        {
+            return true;
+        }
         public void ScriptOpenURL(string url)
         {
             Console.WriteLine("Open: " + url);

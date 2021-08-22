@@ -95,6 +95,9 @@
                     <MenuItem Header="_Run technical script" FontFamily="Segoe UI" Foreground="#FFFFFFFF" Background="#FF333333" SubmenuOpened="MenuItem_RunTechnicalScript_SubmenuOpened">
                         <MenuItem FontFamily="Segoe UI" Foreground="#FFFFFFFF" Background="#FF333333" Header="(...loading...)" IsEnabled="False"/>
                     </MenuItem>
+                    <MenuItem Header="_Run demo script" FontFamily="Segoe UI" Foreground="#FFFFFFFF" Background="#FF333333" SubmenuOpened="MenuItem_RunDemoScript_SubmenuOpened">
+                        <MenuItem FontFamily="Segoe UI" Foreground="#FFFFFFFF" Background="#FF333333" Header="(...loading...)" IsEnabled="False"/>
+                    </MenuItem>
                     <MenuItem Header="Run _other script..." FontFamily="Segoe UI" Foreground="#FFFFFFFF" Background="#FF333333" Click="MenuItem_RunOtherScript_Click"/>
                 </MenuItem>
                 <MenuItem Header="_Help" FontFamily="Segoe UI" Foreground="#FFFFFFFF" Background="#FF333333">

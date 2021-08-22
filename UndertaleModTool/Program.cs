@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using log4net;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -13,38 +15,47 @@ namespace UndertaleModTool
 {
     public static class Program
     {
-        private static Assembly OnResolveAssembly(object sender, ResolveEventArgs args)
+        public static string GetExecutableDirectory()
         {
-            Assembly executingAssembly = Assembly.GetExecutingAssembly();
-            AssemblyName assemblyName = new AssemblyName(args.Name);
-
-            var path = assemblyName.Name + ".dll";
-            if (assemblyName.CultureInfo.Equals(CultureInfo.InvariantCulture) == false) path = String.Format(@"{0}\{1}", assemblyName.CultureInfo, path);
-
-            using (Stream stream = executingAssembly.GetManifestResourceStream(path))
-            {
-                if (stream == null) return null;
-
-                var assemblyRawBytes = new byte[stream.Length];
-                stream.Read(assemblyRawBytes, 0, assemblyRawBytes.Length);
-                return Assembly.Load(assemblyRawBytes);
-            }
+            return Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
         }
 
         // https://stackoverflow.com/questions/1025843/merging-dlls-into-a-single-exe-with-wpf
         [STAThreadAttribute]
         public static void Main()
         {
-            AppDomain.CurrentDomain.AssemblyResolve += OnResolveAssembly;
             try
             {
+                AppDomain currentDomain = default(AppDomain);
+                currentDomain = AppDomain.CurrentDomain;
+                // Handler for unhandled exceptions.
+                currentDomain.UnhandledException += GlobalUnhandledExceptionHandler;
+                // Handler for exceptions in threads behind forms.
+                System.Windows.Forms.Application.ThreadException += GlobalThreadExceptionHandler;
                 App.Main();
             }
             catch (Exception e)
             {
-                File.WriteAllText("crash.txt", e.ToString());
+                File.WriteAllText(Path.Combine(GetExecutableDirectory(), "crash.txt"), e.ToString());
                 MessageBox.Show(e.ToString());
             }
+        }
+        private static void GlobalUnhandledExceptionHandler(object sender, UnhandledExceptionEventArgs e)
+        {
+            Exception ex = default(Exception);
+            ex = (Exception)e.ExceptionObject;
+            ILog log = LogManager.GetLogger(typeof(Program));
+            log.Error(ex.Message + "\n" + ex.StackTrace);
+            File.WriteAllText(Path.Combine(GetExecutableDirectory(), "crash2.txt"), (ex.ToString() + "\n" + ex.Message + "\n" + ex.StackTrace));
+        }
+
+        private static void GlobalThreadExceptionHandler(object sender, System.Threading.ThreadExceptionEventArgs e)
+        {
+            Exception ex = default(Exception);
+            ex = e.Exception;
+            ILog log = LogManager.GetLogger(typeof(Program)); //Log4NET
+            log.Error(ex.Message + "\n" + ex.StackTrace);
+            File.WriteAllText(Path.Combine(GetExecutableDirectory(), "crash3.txt"), (ex.Message + "\n" + ex.StackTrace));
         }
     }
 }

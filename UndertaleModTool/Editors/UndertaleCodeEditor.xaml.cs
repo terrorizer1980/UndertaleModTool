@@ -44,7 +44,7 @@ namespace UndertaleModTool
     {
         public UndertaleCode CurrentDisassembled = null;
         public UndertaleCode CurrentDecompiled = null;
-        public List<string> CurrentDecompiledLocals = null;
+        public List<string> CurrentLocals = null;
         public UndertaleCode CurrentGraphed = null;
         public string ProfileHash = (Application.Current.MainWindow as MainWindow).ProfileHash;
         public string MainPath = Path.Combine(Settings.ProfilesFolder, (Application.Current.MainWindow as MainWindow).ProfileHash, "Main");
@@ -52,10 +52,12 @@ namespace UndertaleModTool
 
         public bool DecompiledFocused = false;
         public bool DecompiledChanged = false;
+        public bool DecompiledYet = false;
         public SearchPanel DecompiledSearchPanel;
 
         public bool DisassemblyFocused = false;
         public bool DisassemblyChanged = false;
+        public bool DisassembledYet = false;
         public SearchPanel DisassemblySearchPanel;
 
         public static RoutedUICommand Compile = new RoutedUICommand("Compile code", "Compile", typeof(UndertaleCodeEditor));
@@ -73,6 +75,18 @@ namespace UndertaleModTool
                 using (XmlTextReader reader = new XmlTextReader(stream))
                 {
                     DecompiledEditor.SyntaxHighlighting = HighlightingLoader.Load(reader, HighlightingManager.Instance);
+                    if ((Application.Current.MainWindow as MainWindow).Data.GeneralInfo.Major < 2)
+                    {
+                        var def = DecompiledEditor.SyntaxHighlighting;
+                        foreach (var span in def.MainRuleSet.Spans)
+                        {
+                            string expr = span.StartExpression.ToString();
+                            if (expr == "\"" || expr == "'")
+                            {
+                                span.RuleSet.Spans.Clear();
+                            }
+                        }
+                    }
                 }
             }
 
@@ -108,6 +122,8 @@ namespace UndertaleModTool
                 }
             }
 
+            DisassemblyEditor.TextArea.TextView.ElementGenerators.Add(new NameGenerator());
+
             DisassemblyEditor.TextArea.TextView.Options.HighlightCurrentLine = true;
             DisassemblyEditor.TextArea.TextView.CurrentLineBackground = new SolidColorBrush(Color.FromRgb(60, 60, 60));
             DisassemblyEditor.TextArea.TextView.CurrentLineBorder = new Pen() { Thickness = 0 };
@@ -133,11 +149,13 @@ namespace UndertaleModTool
             DisassemblyEditor_LostFocus(sender, null);
             if (DisassemblyTab.IsSelected && code != CurrentDisassembled)
             {
-                DisassembleCode(code);
+                DisassembleCode(code, !DisassembledYet);
+                DisassembledYet = true;
             }
             if (DecompiledTab.IsSelected && code != CurrentDecompiled)
             {
-                DecompileCode(code);
+                DecompileCode(code, !DecompiledYet);
+                DecompiledYet = true;
             }
             if (GraphTab.IsSelected && code != CurrentGraphed)
             {
@@ -154,11 +172,11 @@ namespace UndertaleModTool
             DisassemblyEditor_LostFocus(sender, null);
             if (DisassemblyTab.IsSelected && code != CurrentDisassembled)
             {
-                DisassembleCode(code);
+                DisassembleCode(code, true);
             }
             if (DecompiledTab.IsSelected && code != CurrentDecompiled)
             {
-                DecompileCode(code);
+                DecompileCode(code, true);
             }
             if (GraphTab.IsSelected && code != CurrentGraphed)
             {
@@ -182,7 +200,7 @@ namespace UndertaleModTool
             }
         }
 
-        private void DisassembleCode(UndertaleCode code)
+        private void DisassembleCode(UndertaleCode code, bool first)
         {
             code.UpdateAddresses();
 
@@ -200,9 +218,16 @@ namespace UndertaleModTool
 
                 var data = (Application.Current.MainWindow as MainWindow).Data;
                 text = code.Disassemble(data.Variables, data.CodeLocals.For(code));
+
+                CurrentLocals = new List<string>();
             }
 
-            DisassemblyEditor.Text = text;
+            DisassemblyEditor.Document.BeginUpdate();
+            DisassemblyEditor.Document.Text = text;
+            DisassemblyEditor.Document.EndUpdate();
+
+            if (first)
+                DisassemblyEditor.Document.UndoStack.ClearAll();
 
             CurrentDisassembled = code;
             DisassemblyChanged = false;
@@ -266,7 +291,7 @@ namespace UndertaleModTool
             return null;
         }
 
-        private async void DecompileCode(UndertaleCode code, LoaderDialog existingDialog = null)
+        private async void DecompileCode(UndertaleCode code, bool first, LoaderDialog existingDialog = null)
         {
             DecompiledEditor.IsReadOnly = true;
             DecompiledEditor.TextArea.ClearSelection();
@@ -288,7 +313,14 @@ namespace UndertaleModTool
                 {
                     dialog = new LoaderDialog("Decompiling", "Decompiling, please wait... This can take a while on complex scripts.");
                     dialog.Owner = Window.GetWindow(this);
-                    _ = Dispatcher.BeginInvoke(new Action(() => { if (!dialog.IsClosed) dialog.TryShowDialog(); }));
+                    try
+                    {
+                        _ = Dispatcher.BeginInvoke(new Action(() => { if (!dialog.IsClosed) dialog.TryShowDialog(); }));
+                    } 
+                    catch
+                    {
+                        // This is still a problem in rare cases for some unknown reason
+                    }
                 }
 
                 UndertaleCode gettextCode = null;
@@ -309,9 +341,10 @@ namespace UndertaleModTool
                         string path = Path.Combine(TempPath, code.Name.Content + ".gml");
                         if (!SettingsWindow.ProfileModeEnabled || !File.Exists(path))
                         {
-                            decompiled = Decompiler.Decompile(code, context).Replace("\r\n", "\n");
-                        } else
-                            decompiled = File.ReadAllText(path).Replace("\r\n", "\n");
+                            decompiled = Decompiler.Decompile(code, context);
+                        }
+                        else
+                            decompiled = File.ReadAllText(path);
                     }
                     catch (Exception ex)
                     {
@@ -386,21 +419,25 @@ namespace UndertaleModTool
                         if (DataContext != code)
                             return; // Switched to another code entry or otherwise
 
+                        DecompiledEditor.Document.BeginUpdate();
                         if (e != null)
-                            DecompiledEditor.Text = "/* EXCEPTION!\n   " + e.ToString() + "\n*/";
+                            DecompiledEditor.Document.Text = "/* EXCEPTION!\n   " + e.ToString() + "\n*/";
                         else if (decompiled != null)
                         {
-                            DecompiledEditor.Text = decompiled;
-                            CurrentDecompiledLocals = new List<string>();
+                            DecompiledEditor.Document.Text = decompiled;
+                            CurrentLocals = new List<string>();
 
                             var locals = dataa.CodeLocals.ByName(code.Name.Content);
                             if (locals != null)
                             {
                                 foreach (var local in locals.Locals)
-                                    CurrentDecompiledLocals.Add(local.Name.Content);
+                                    CurrentLocals.Add(local.Name.Content);
                             }
                         }
+                        DecompiledEditor.Document.EndUpdate();
                         DecompiledEditor.IsReadOnly = false;
+                        if (first)
+                            DecompiledEditor.Document.UndoStack.ClearAll();
                         DecompiledChanged = false;
 
                         CurrentDecompiled = code;
@@ -508,7 +545,14 @@ namespace UndertaleModTool
 
             LoaderDialog dialog = new LoaderDialog("Compiling", "Compiling, please wait...");
             dialog.Owner = Window.GetWindow(this);
-            _ = Dispatcher.BeginInvoke(new Action(() => { if (!dialog.IsClosed) dialog.TryShowDialog(); }));
+            try
+            {
+                _ = Dispatcher.BeginInvoke(new Action(() => { if (!dialog.IsClosed) dialog.TryShowDialog(); }));
+            }
+            catch
+            {
+                // This is still a problem in rare cases for some unknown reason
+            }
 
             CompileContext compileContext = null;
             string text = DecompiledEditor.Text;
@@ -578,10 +622,13 @@ namespace UndertaleModTool
 
             // Tab switch
             if (e == null)
+            {
+                dialog.TryClose();
                 return;
+            }
 
             // Decompile new code
-            DecompileCode(code, dialog);
+            DecompileCode(code, false, dialog);
         }
 
         private void DisassemblyEditor_GotFocus(object sender, RoutedEventArgs e)
@@ -639,7 +686,7 @@ namespace UndertaleModTool
                 return;
 
             // Disassemble new code
-            DisassembleCode(code);
+            DisassembleCode(code, false);
         }
 
         // Based on https://stackoverflow.com/questions/28379206/custom-hyperlinks-using-avalonedit
@@ -926,7 +973,7 @@ namespace UndertaleModTool
                             data.BuiltinList.GlobalArray.ContainsKey(m.Value))
                             return new ColorVisualLineText(m.Value, CurrentContext.VisualLine, m.Length,
                                                             new SolidColorBrush(Color.FromRgb(0x58, 0xE3, 0x5A)));
-                        if ((parent as UndertaleCodeEditor).CurrentDecompiledLocals.Contains(m.Value))
+                        if ((parent as UndertaleCodeEditor).CurrentLocals.Contains(m.Value))
                             return new ColorVisualLineText(m.Value, CurrentContext.VisualLine, m.Length,
                                                             new SolidColorBrush(Color.FromRgb(0xFF, 0xF8, 0x99)));
                         return null;

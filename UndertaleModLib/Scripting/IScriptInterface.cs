@@ -14,6 +14,10 @@ namespace UndertaleModLib.Scripting
         object Highlighted { get; }
         object Selected { get; }
         bool CanSave { get; }
+        bool ScriptExecutionSuccess { get; }
+        string ScriptErrorMessage { get; }
+        string ExePath { get; }
+        string ScriptErrorType { get; }
 
         void EnsureDataLoaded();
         void ReplaceTempWithMain(bool ImAnExpertBTW = false);
@@ -27,7 +31,11 @@ namespace UndertaleModLib.Scripting
         bool ScriptQuestion(string message);
         void ScriptError(string error, string title = "Error", bool SetConsoleText = true);
         void ScriptOpenURL(string url);
-        string LintAllScripts();
+        bool SendAUMIMessage(IpcMessage_t ipMessage, ref IpcReply_t outReply);
+        bool RunUMTScript(string path);
+        bool LintUMTScript(string path);
+        void InitializeScriptDialog();
+        void ReapplyProfileCode();
         void NukeProfileGML(string codeName);
         string GetDecompiledText(string codeName);
         string GetDisassemblyText(string codeName);
