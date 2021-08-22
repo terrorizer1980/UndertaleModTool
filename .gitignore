@@ -329,3 +329,7 @@ ASALocalRun/
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
 *.bak
+UndertaleModTests/UndertaleModTests - Backup.csproj
+UndertaleModTool/UndertaleModTool - Backup.csproj
+Test/Test - Backup.csproj
+UndertaleModLib/UndertaleModLib - Backup.csproj
